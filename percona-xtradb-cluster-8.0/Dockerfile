@@ -1,9 +1,9 @@
-FROM golang:1.17 AS go_builder
+FROM golang:1.17.5 AS go_builder
 WORKDIR /go/src/github.com/percona/percona-xtradb-cluster-operator/src
 
 RUN go get k8s.io/apimachinery/pkg/util/sets; \
-    curl -Lf -o /go/src/github.com/percona/percona-xtradb-cluster-operator/src/peer-list.go https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/main/cmd/peer-list/main.go; \
-	go build peer-list.go
+    curl -Lfk -o /go/src/github.com/percona/percona-xtradb-cluster-operator/src/peer-list.go https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v1.8.0/cmd/peer-list/main.go; \
+	go mod init; go mod tidy; go build peer-list.go
 
 FROM centos:8 AS centos8
 
@@ -12,12 +12,12 @@ LABEL org.opencontainers.image.authors="info@percona.com"
 # check repository package signature in secure way
 RUN set -ex; \
     export GNUPGHOME="$(mktemp -d)"; \
-    gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A 99DB70FAE1D7CE227FB6488205B555B38483C65D 94E279EB8D8F25B21810ADF121EA45AB2F86D6A1; \
+    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A 99DB70FAE1D7CE227FB6488205B555B38483C65D 94E279EB8D8F25B21810ADF121EA45AB2F86D6A1; \
     gpg --batch --export --armor 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A > ${GNUPGHOME}/RPM-GPG-KEY-Percona; \
     gpg --batch --export --armor 99DB70FAE1D7CE227FB6488205B555B38483C65D > ${GNUPGHOME}/RPM-GPG-KEY-centosofficial; \
     gpg --batch --export --armor 94E279EB8D8F25B21810ADF121EA45AB2F86D6A1 > ${GNUPGHOME}/RPM-GPG-KEY-EPEL-8; \
     rpmkeys --import ${GNUPGHOME}/RPM-GPG-KEY-Percona ${GNUPGHOME}/RPM-GPG-KEY-EPEL-8 ${GNUPGHOME}/RPM-GPG-KEY-centosofficial; \
-    curl -Lf -o /tmp/percona-release.rpm https://repo.percona.com/yum/percona-release-latest.noarch.rpm; \
+    curl -Lf -o /tmp/percona-release.rpm https://repo.percona.com/yum/percona-release-1.0-26.noarch.rpm; \
     rpmkeys --checksig /tmp/percona-release.rpm; \
     dnf install -y /tmp/percona-release.rpm; \
     rm -rf "$GNUPGHOME" /tmp/percona-release.rpm; \
@@ -57,6 +57,16 @@ RUN set -ex; \
 		oniguruma \
 		cracklib-dicts \
 		dnf-utils; \
+	dnf update -y \
+		glib2.x86_64 \
+		dhcp-libs.x86_64 \
+		dhcp-client.x86_64 \
+		dhcp-common.noarch \
+		bind-export-libs.x86_64 \
+		nettle.x86_64 \
+		gnutls.x86_64 \
+		openssl-libs.i686 \
+		openssl; \
 	dnf clean all; \
 	rm -rf /var/cache/dnf
 
