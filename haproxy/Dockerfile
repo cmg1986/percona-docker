@@ -1,8 +1,10 @@
-FROM golang:1.14 AS go_builder
+FROM golang:1.17.5 AS go_builder
 WORKDIR /go/src/github.com/percona/percona-xtradb-cluster-operator/src
 
 RUN go get k8s.io/apimachinery/pkg/util/sets \
-    && curl -Lf -o /go/src/github.com/percona/percona-xtradb-cluster-operator/src/peer-list.go https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/main/cmd/peer-list/main.go \
+    && curl -Lfk -o /go/src/github.com/percona/percona-xtradb-cluster-operator/src/peer-list.go https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v1.8.0/cmd/peer-list/main.go \
+    && go mod init \
+    && go mod tidy \
     && go build peer-list.go
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal AS ubi8
@@ -16,10 +18,10 @@ LABEL name="HAproxy" \
 # check repository package signature in secure way
 RUN export GNUPGHOME="$(mktemp -d)" \
 	&& microdnf install -y findutils \
-	&& gpg --keyserver pool.sks-keyservers.net --recv-keys 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A \
+	&& gpg --keyserver keyserver.ubuntu.com --recv-keys 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A \
 	&& gpg --export --armor 430BDF5C56E7C94E848EE60C1C4CBDCDCD2EFD2A > ${GNUPGHOME}/RPM-GPG-KEY-Percona \
 	&& rpmkeys --import ${GNUPGHOME}/RPM-GPG-KEY-Percona \
-	&& curl -Lf -o /tmp/percona-release.rpm https://repo.percona.com/yum/percona-release-latest.noarch.rpm \
+	&& curl -Lf -o /tmp/percona-release.rpm https://repo.percona.com/yum/percona-release-1.0-26.noarch.rpm \
 	&& rpmkeys --checksig /tmp/percona-release.rpm \
 	&& rpm -i /tmp/percona-release.rpm \
 	&& rm -rf "$GNUPGHOME" /tmp/percona-release.rpm \
@@ -40,6 +42,11 @@ RUN set -ex; \
         procps-ng \
         policycoreutils; \
     \
+    microdnf update -y \
+        glib2 \
+        gnutls \
+        nettle \
+        openssl-libs; \
     microdnf clean all; \
     rm -rf /var/cache
 
