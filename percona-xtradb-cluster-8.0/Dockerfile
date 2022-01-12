@@ -8,6 +8,7 @@ RUN go get k8s.io/apimachinery/pkg/util/sets; \
 FROM centos:8 AS centos8
 
 LABEL org.opencontainers.image.authors="info@percona.com"
+LABEL desc="This is Security Patched modified image with updated Golang and some Packages"
 
 # check repository package signature in secure way
 RUN set -ex; \
@@ -35,16 +36,19 @@ ENV PXC_REPO release
 ENV OS_VER el8
 ENV FULL_PERCONA_XTRADBCLUSTER_VERSION "$PXC_VERSION.$OS_VER"
 
+COPY openssl-1.1.1g-15.el8_3.x86_64.rpm ./
+COPY openssl-pkcs11-0.4.10-2.el8.x86_64.rpm ./
+COPY socat-1.7.3.3-2.el8.x86_64.rpm ./
 RUN set -ex; \
 	percona-release setup -y ps-80; \
 	rpm -e --nodeps tzdata; \
 	dnf install -y \
 		jemalloc \
-		socat \
-		openssl \
+		# socat \
+		# openssl \
 		shadow-utils \
 		hostname \
-		curl \
+		# curl \
 		tzdata \
 		diffutils \
 		libaio \
@@ -57,18 +61,18 @@ RUN set -ex; \
 		oniguruma \
 		cracklib-dicts \
 		dnf-utils; \
+	dnf localinstall -y openssl-1.1.1g-15.el8_3.x86_64.rpm; \	
+	dnf localinstall -y openssl-pkcs11-0.4.10-2.el8.x86_64.rpm; \	
+	dnf localinstall -y socat-1.7.3.3-2.el8.x86_64.rpm; \
 	dnf update -y \
-		glib2.x86_64 \
-		dhcp-libs.x86_64 \
-		dhcp-client.x86_64 \
-		dhcp-common.noarch \
-		bind-export-libs.x86_64 \
-		nettle.x86_64 \
-		gnutls.x86_64 \
-		openssl-libs.i686 \
-		openssl; \
+		glib2 \
+		dhcp-libs \
+		bind-export-libs \
+		nettle \
+		gnutls; \
 	dnf clean all; \
-	rm -rf /var/cache/dnf
+	rm -rf /var/cache/dnf; \
+	rm -rf openssl-1.1.1g-15.el8_3.x86_64.rpm openssl-pkcs11-0.4.10-2.el8.x86_64.rpm socat-1.7.3.3-2.el8.x86_64.rpm
 
 # create mysql user/group before mysql installation
 RUN groupadd -g 1001 mysql; \
